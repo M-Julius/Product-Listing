@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { View, FlatList, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { fetchBySearch, fetchCategory, fetchProducts } from '../redux/productSlice';
-import ProductItem from '../components/ProductItem';
 import { HomeScreenNavigationProp } from '../types/Navigation';
 import { Product } from '../types/Product';
 import { RootState, useAppDispatch, useAppSelector } from '../redux/store';
@@ -9,6 +8,9 @@ import CategorySelecting from '../components/CategorySelecting';
 import { TextInput } from 'react-native-gesture-handler';
 import useDebounce from '../hooks/useDebounce';
 import ShopCart from '../components/ShopCart';
+import ShimmerPlaceHolder from '../components/ShimmerPlaceholder';
+
+const ProductItem = React.lazy(() => import('../components/ProductItem'));
 
 type Props = {
     navigation: HomeScreenNavigationProp;
@@ -31,11 +33,17 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     }, [debouncedSearchQuery, dispatch]);
 
     const renderItem = ({ item }: { item: Product }) => (
-        <ProductItem product={item} navigation={navigation} />
+        <Suspense fallback={
+            <ShimmerPlaceHolder
+                style={styles.shimmer}
+            />
+        }>
+            <ProductItem product={item} navigation={navigation} />
+        </Suspense>
     );
 
     const loadMoreProducts = () => {
-        if (hasMore && !debouncedSearchQuery && !categoySelected) {
+        if (!loading && hasMore && !debouncedSearchQuery && !categoySelected) {
             dispatch(fetchProducts(page + 1));
         }
     };
@@ -71,7 +79,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <FlatList
-                refreshing={loading}
+                refreshing={false}
                 onRefresh={resetFilter}
                 data={products}
                 numColumns={2}
@@ -80,7 +88,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id.toString()}
                 onEndReached={loadMoreProducts}
-                onEndReachedThreshold={0.5}
+                onEndReachedThreshold={1}
                 ListFooterComponent={() => loading && <ActivityIndicator size="large" color="#000000" style={styles.loader} />}
             />
         </View>
@@ -121,7 +129,12 @@ const styles = StyleSheet.create({
     loader: {
         alignSelf: 'center',
         paddingVertical: 20
-    }
+    },
+    shimmer: {
+        height: 100,
+        borderRadius: 8,
+        marginBottom: 10,
+    },
 
 });
 
